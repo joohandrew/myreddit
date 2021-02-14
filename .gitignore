@@ -1,9 +1,7 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
+############# CLIENT ###############
 # dependencies
 myreddit-client/node_modules
-myreddit-server/node_modules
-myreddit-client//.pnp
+myreddit-client/.pnp
 myreddit-client/.pnp.js
 
 # testing
@@ -25,10 +23,6 @@ myreddit-client/npm-debug.log*
 myreddit-client/yarn-debug.log*
 myreddit-client/yarn-error.log*
 
-myreddit-server/npm-debug.log*
-myreddit-server/yarn-debug.log*
-myreddit-server/yarn-error.log*
-
 # local env files
 myreddit-client/.env.local
 myreddit-client/.env.development.local
@@ -37,3 +31,10 @@ myreddit-client/.env.production.local
 
 # vercel
 myreddit-client/.vercel
+
+############# SERVER ###############
+myreddit-server/node_modules
+myreddit-server/dist
+myreddit-server/npm-debug.log*
+myreddit-server/yarn-debug.log*
+myreddit-server/yarn-error.log*
