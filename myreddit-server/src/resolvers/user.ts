@@ -2,7 +2,6 @@ import { User } from "../entities/User";
 import { MyContext } from "../types";
 import { Arg, Ctx, Field, Mutation, ObjectType, Query } from "type-graphql";
 import argon2 from "argon2";
-import { EntityManager } from "@mikro-orm/postgresql";
 import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from "../constants";
 import { UsernamePasswordInput } from "./UsernamePasswordInput";
 import { validateRegister } from "../utils/validateRegister";
@@ -32,7 +31,7 @@ export class UserResolver {
   async changePassword(
     @Arg("token") token: string,
     @Arg("newPassword") newPassword: string,
-    @Ctx() { em, redis, req }: MyContext
+    @Ctx() { redis, req }: MyContext
   ): Promise<UserResponse> {
     if (newPassword.length <= 3) {
       return {
@@ -58,7 +57,8 @@ export class UserResolver {
       };
     }
 
-    const user = await em.findOne(User, { id: parseInt(userId) });
+    const userIdNum = parseInt(userId);
+    const user = await User.findOne(userIdNum);
     if (!user) {
       return {
         errors: [
@@ -70,8 +70,13 @@ export class UserResolver {
       };
     }
 
-    user.password = await argon2.hash(newPassword);
-    await em.persistAndFlush(user);
+    await User.update(
+      { id: userIdNum },
+      {
+        password: await argon2.hash(newPassword),
+      }
+    );
+
     redis.del(key);
     // log in user after change password
     req.session.userId = user.id;
@@ -82,9 +87,9 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async forgotPassword(
     @Arg("email") email: string,
-    @Ctx() { em, redis }: MyContext
+    @Ctx() { redis }: MyContext
   ) {
-    const user = await em.findOne(User, { email });
+    const user = await User.findOne({ where: { email } });
     if (!user) {
       // the email is not in the database
       return true;
@@ -105,43 +110,30 @@ export class UserResolver {
   }
 
   @Query(() => User, { nullable: true })
-  async me(@Ctx() { em, req }: MyContext) {
+  me(@Ctx() { req }: MyContext) {
     if (!req.session.userId) {
       return null;
     }
-    const user = await em.findOne(User, { id: req.session.userId });
-    return user;
+    return User.findOne(req.session.userId);
   }
 
   @Mutation(() => UserResponse)
   async register(
     @Arg("options") options: UsernamePasswordInput,
-    @Ctx() { em, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     const errors = validateRegister(options);
     if (errors) {
       return { errors };
     }
     const hashedPassword = await argon2.hash(options.password);
-    // const user = em.create(User, {
-    //   username: options.username,
-    //   password: hashedPassword,
-    // });
     let user;
     try {
-      const result = await (em as EntityManager)
-        .createQueryBuilder(User)
-        .getKnexQuery()
-        .insert({
-          username: options.username,
-          email: options.email,
-          password: hashedPassword,
-          created_at: new Date(),
-          updated_at: new Date(),
-        })
-        .returning("*");
-      user = result[0];
-      // await em.persistAndFlush(user); orm library error regarding persistAndFlush
+      user = await User.create({
+        username: options.username,
+        email: options.email,
+        password: hashedPassword,
+      }).save();
     } catch (err) {
       // duplicate username error
       if (err.code === "23505") {
@@ -155,10 +147,8 @@ export class UserResolver {
         };
       }
     }
-
     // store userId session, setting cookie on the user, and keeping them logged in
-    req.session.userId = user.id;
-
+    req.session.userId = user?.id;
     return { user };
   }
 
@@ -166,13 +156,12 @@ export class UserResolver {
   async login(
     @Arg("usernameOrEmail") usernameOrEmail: string,
     @Arg("password") password: string,
-    @Ctx() { em, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(
-      User,
+    const user = await User.findOne(
       usernameOrEmail.includes("@")
-        ? { email: usernameOrEmail }
-        : { username: usernameOrEmail }
+        ? { where: { email: usernameOrEmail } }
+        : { where: { username: usernameOrEmail } }
     );
     if (!user) {
       return {
