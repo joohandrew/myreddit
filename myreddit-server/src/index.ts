@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "dotenv-safe/config";
 import { COOKIE_NAME, __prod__ } from "./constants";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
@@ -20,18 +21,16 @@ import { createUserLoader } from "./utils/createUserLoader";
 import { createUpdootLoader } from "./utils/createUpdootLoader";
 
 const main = async () => {
-  const conn = await createConnection({
+  //const conn =
+  await createConnection({
     type: "postgres",
-    database: "myreddit",
-    username: "postgres",
-    password: "password",
+    url: process.env.DATABASE_URL,
     logging: true,
-    synchronize: true,
+    // synchronize: true,
     migrations: [path.join(__dirname, "./migrations/*")],
     entities: [User, Post, Updoot],
   });
-
-  await conn.runMigrations();
+  // await conn.runMigrations();
   // await Updoot.delete({});
   // await Post.delete({});
 
@@ -39,12 +38,12 @@ const main = async () => {
 
   // Redis
   const RedisStore = connectRedis(session);
-  const redis = new Redis();
-
+  const redis = new Redis(process.env.REDIS_URL);
+  app.set("trust proxy", 1);
   // Apply cors to all routes
   app.use(
     cors({
-      origin: "http://localhost:3000",
+      origin: process.env.CORS_ORIGIN,
       credentials: true,
     })
   );
@@ -60,9 +59,10 @@ const main = async () => {
         httpOnly: true,
         sameSite: "lax", // csrf
         secure: __prod__, // cookie only works in https
+        domain: __prod__ ? ".codeponder.com" : undefined,
       },
       saveUninitialized: false,
-      secret: "abdsgtaegadfgahfaradfasdfabhtrkyruk",
+      secret: process.env.SESSION_SECRET,
       resave: false, // stop pinging redis
     })
   );
@@ -86,7 +86,7 @@ const main = async () => {
     cors: false, //since we are using cors middleware
   });
 
-  app.listen(4000, () => {
+  app.listen(parseInt(process.env.PORT), () => {
     console.log("server started on localhost:4000");
   });
 };

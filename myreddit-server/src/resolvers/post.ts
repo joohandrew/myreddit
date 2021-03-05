@@ -1,4 +1,3 @@
-import { Post } from "../entities/Post";
 import {
   Arg,
   Ctx,
@@ -13,11 +12,12 @@ import {
   Root,
   UseMiddleware,
 } from "type-graphql";
-import { MyContext } from "../types";
-import { isAuth } from "../middleware/isAuth";
 import { getConnection } from "typeorm";
+import { Post } from "../entities/Post";
 import { Updoot } from "../entities/Updoot";
 import { User } from "../entities/User";
+import { isAuth } from "../middleware/isAuth";
+import { MyContext } from "../types";
 
 @InputType()
 class PostInput {
@@ -116,7 +116,7 @@ export class PostResolver {
 
     const posts = await getConnection().query(
       `
-      select p.*, 
+      select p.*
       from post p
       ${cursor ? `where p."createdAt" < $2` : ""}
       order by p."createdAt" DESC
@@ -124,20 +124,6 @@ export class PostResolver {
     `,
       replacements
     );
-
-    // const qb = getConnection()
-    //   .getRepository(Post)
-    //   .createQueryBuilder("p")
-    //   .innerJoinAndSelect("p.creator", "u", 'u.id = :p."creatorId"')
-    //   .orderBy('p."createdAt"', "DESC")
-    //   .take(realLimitPlusOne);
-    // if (cursor) {
-    //   qb.where('p."createdAt" < :cursor', {
-    //     cursor: new Date(parseInt(cursor)),
-    //   });
-    // }
-
-    // const posts = await qb.getMany();
 
     return {
       posts: posts.slice(0, realLimit),

@@ -38,3 +38,4 @@ myreddit-server/dist
 myreddit-server/npm-debug.log*
 myreddit-server/yarn-debug.log*
 myreddit-server/yarn-error.log*
+myreddit-server/.env
